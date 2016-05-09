@@ -103,7 +103,7 @@ def make_salsa_matrix(nonce0, nonce2, counterLow, counterHigh):
     
     for key in xrange(len(k_words)):
         matrix[k_pos[key]] = k_words[key]
-    
+    #constant value positions
     matrix[P_NONCE0] = z3.BitVecVal(nonce0, 16)
     matrix[P_NONCE2] = z3.BitVecVal(nonce2, 16)
     matrix[P_COUNTERLOW] = z3.BitVecVal(counterLow, 16)
@@ -133,19 +133,24 @@ def read_init(sourceName = "src.txt", nonceName = "nonce.txt"):
     """Reads hexadecimal values of the source and nonce data, same as: https://petya-pay-no-ransom-mirror1.herokuapp.com/"""
     #opens the files in binary mode, and reads them into a struct
     with open(nonceName, "rb") as f_nonce:
-        nonce = f_nonce.read().replace(" ", "").decode("hex")
+        nonce = f_nonce.read().replace(" ", "")
+        print("\nnonce: {}\n".format(nonce))
+        nonce = nonce.decode("hex")
+
         #4 unsigned shorts
         (n0, n2, n4, n6) = struct.unpack("HHHH", nonce)
         init = make_salsa_matrix(n0, n4, COUNTERLOW, COUNTERHIGH)
         init_clone = [i for i in init]
     
     with open(sourceName, "rb") as f_src:
-        src = f_src.read().replace(" ", "").decode("hex")
+        src = "".join(line.strip() for line in f_src).replace(" ", "")
+        print("src: {}".format(src))
+        src = src.decode("hex")
         #creates a bytearray of the source, then constructs the words from it 
         srcbytes = bytearray(src)
         srcwords = [ None ]* len(init)
         for i in xrange(len(init)):
-            #bitwise xor vs the target
+            #bitwise xor vs the target, shift it left to find the max bound
             low = (srcbytes[4*i] ^ TARGET)
             high = (srcbytes[4*i+1] ^ TARGET) << 8
             srcwords[i] = z3.BitVecVal(low | high, 16)
@@ -170,10 +175,13 @@ salsa10(init)
 
 for i in xrange(len(init)):
     solver.add((init_clone[i] + init[i]) == srcwords[i])
-    
+
+#check for finish: https://en.wikipedia.org/wiki/Boolean_satisfiability_problem
 if solver.check() == z3.sat:
     m = solver.model()
     outbytes = map(lambda x: chr(m[x].as_long()), k_bytes)
-    print("x".join(outbytes))
+    out = "x".join(outbytes)
+    out = out if len(out) == 16 else out + "x"
+    print("\npassword is: \n{}\n".format(out))
 else:
     print("Problem is bool-unsat-able!")
