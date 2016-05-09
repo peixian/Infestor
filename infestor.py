@@ -152,8 +152,8 @@ def read_init(sourceName = "src.txt", nonceName = "nonce.txt"):
         for i in xrange(len(init)):
             #bitwise xor vs the target, shift it left to find the max bound
             low = (srcbytes[4*i] ^ TARGET)
-            high = (srcbytes[4*i+1] ^ TARGET) << 8
-            srcwords[i] = z3.BitVecVal(low | high, 16)
+            high = (srcbytes[4*i+1] ^ TARGET) << 8 #shift by 8 because bad salsa always uses 8 bit shift (check line 44-47 of `samples/badsalsa.c`)
+            srcwords[i] = z3.BitVecVal(low | high, 16) #hash only has 16 bit words, not 32 bit (see `samples/badsalsa.c`)
             
     return (init, init_clone, srcwords)
     
