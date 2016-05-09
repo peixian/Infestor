@@ -159,7 +159,6 @@ def read_init(sourceName = "src.txt", nonceName = "nonce.txt"):
             
     return (init, init_clone, srcwords)
     
-
 init, init_clone, srcwords = read_init()
 
 #create a z3 solver, using SMT-LIB logic: http://smtlib.cs.uiowa.edu/

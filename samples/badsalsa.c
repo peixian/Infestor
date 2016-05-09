@@ -80,6 +80,7 @@ static void s20_expand32(uint8_t *k, uint8_t n[16], uint8_t keystream[64])
   int i, j;
   // The constants specified by the Salsa20 specification, 'sigma'
   // "expand 32-byte k"
+	//magic constants
   uint8_t o[4][4] = {
     { 'e', 'x', 'p', 'a' },
     { 'n', 'd', ' ', '3' },
