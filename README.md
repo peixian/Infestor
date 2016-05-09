@@ -8,6 +8,9 @@ Noticible Differences Between Actual Salsa20 and BadSalsa
 2. `s20_rev_littleendian` (line `49` in `samples/badsalsa.c`)
 3. BadSalsa lacks the `s20_expand16` function, so the `s20_crypt` function always expands by `s20_expand32`
 
+Notes
+------
+VMDKTemplate is meant to be used with 010Editor, slightly changed to only display the first grain. 
 
 - Salsa20 Wikipedia: https://en.wikipedia.org/wiki/Salsa20
 - Salsa20 Spec: https://cr.yp.to/snuffle/spec.pdf

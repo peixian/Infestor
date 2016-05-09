@@ -1,7 +1,7 @@
 import struct
 import z3
 
-# Input values to the Salsa round primitive
+# Input values to the Salsa round primitive, taken from shuffle() in the hackpetya
 salsa_steps = [
   (4,0,12,7),
   (8,4,0,9),
@@ -47,14 +47,16 @@ salsa_steps = [
 #byte range for iterations
 BYTERANGE = xrange(8)
 
-#all bytes in the decrypted data need to XOR to 0x37, this is our target data
+#all bytes in the decrypted data need to XOR to 0x37, this is our target data (since this is the encrypyted sector)
 TARGET = 0x37
 
 #low and high counter positions
-COUNTERLOW = 0
-COUNTERHIGH = 0
+STREAMLOW = 0
+STREAMHIGH = 0
 
 #index positions for easier reference
+#16 word state - 8 words of key, 2 words of stream position, 2 words of nonce, and 4 fixed words
+#[Const, Key, Key, Key, key, Const, Nonce, Nonce, StreamPos, StreamPos, Const, Key, Key, Key, Key, Const]
 P_CONST0 = 0
 P_KEY0 = 1
 P_KEY2 = 2
@@ -63,8 +65,8 @@ P_KEY6 = 4
 P_CONST2 = 5
 P_NONCE0 = 6
 P_NONCE2 = 7
-P_COUNTERLOW = 8
-P_COUNTERHIGH = 9
+P_STREAMLOW = 8
+P_STREAMHIGH = 9
 P_CONST4 = 10
 P_KEY8 = 11
 P_KEY10 = 12
@@ -74,7 +76,7 @@ P_CONST6 = 15
 
 #constant values 
 c_vals = [ 30821, 25710, 11570, 25972 ] #constant petya matrix, derived from [ 0x7865, 0x646E, 0x2D32, 0x6574 ], from https://github.com/leo-stone/hack-petya/blob/master/main.go
-#constant positions
+
 c_pos = [ P_CONST0, P_CONST2, P_CONST4, P_CONST6 ] #constant positions, need to shuffle this into steps
 
 #key bytes and key positions
@@ -91,41 +93,41 @@ for i in BYTERANGE:
 
 print(k_words)
 
+#key position array
 k_pos = [ P_KEY0, P_KEY2, P_KEY4, P_KEY6, P_KEY8, P_KEY10, P_KEY12, P_KEY14 ]
 
-
-def make_salsa_matrix(nonce0, nonce2, counterLow, counterHigh):
+def make_salsa_matrix(nonce0, nonce2, streamLow, streamHigh):
     """Creates the salsa matrix with the nonce/low counter/high counter"""
     matrix = [ 0 ] * 16
     #4 constant values
     for val in xrange(len(c_vals)):
         matrix[c_pos[val]] = z3.BitVecVal(c_vals[val], 16)
-    
+    #8 key values
     for key in xrange(len(k_words)):
         matrix[k_pos[key]] = k_words[key]
-    #constant value positions
+    #2 nonces, 2 streamPos
     matrix[P_NONCE0] = z3.BitVecVal(nonce0, 16)
     matrix[P_NONCE2] = z3.BitVecVal(nonce2, 16)
-    matrix[P_COUNTERLOW] = z3.BitVecVal(counterLow, 16)
-    matrix[P_COUNTERHIGH] = z3.BitVecVal(counterHigh, 16)
+    matrix[P_STREAMLOW] = z3.BitVecVal(streamLow, 16)
+    matrix[P_STREAMHIGH] = z3.BitVecVal(streamHigh, 16)
     
     return matrix
         
 
 def step(arr, out_pos, in_left, in_right, rotate_amount):
-    """steps through the salsa16 primitive"""
-    total = z3.ZeroExt(16, arr[in_left] + arr[in_right])
-    rot = z3.RotateLeft(total, rotate_amount)
-    arr[out_pos] ^= z3.Extract(15, 0, rot)
+    """steps through the salsa16 primitive, follows the add-rotate-xor operation: https://en.wikipedia.org/wiki/Block_cipher#Operations"""
+    total = z3.ZeroExt(16, arr[in_left] + arr[in_right]) #add 
+    rot = z3.RotateLeft(total, rotate_amount) #rotate
+    arr[out_pos] ^= z3.Extract(15, 0, rot) #xor
     
 def salsa_iteration(arr):
     """One iteration of the salsa16 round"""
     for salsa_round in salsa_steps:
-        step(arr, *salsa_round)
+        step(arr, *salsa_round) 
     
 def salsa10(arr):
     """10 iterations of the salsa16 round"""
-    #only shuffle this 10 rounds because it's bad
+    #only shuffle this 10 rounds because it's the `s20_rev_littleendian` function doesn't shift by any amount besides 8
     for i in xrange(10):
         salsa_iteration(arr)
 
@@ -139,7 +141,7 @@ def read_init(sourceName = "src.txt", nonceName = "nonce.txt"):
 
         #4 unsigned shorts
         (n0, n2, n4, n6) = struct.unpack("HHHH", nonce)
-        init = make_salsa_matrix(n0, n4, COUNTERLOW, COUNTERHIGH)
+        init = make_salsa_matrix(n0, n4, STREAMLOW, STREAMHIGH)
         init_clone = [i for i in init]
     
     with open(sourceName, "rb") as f_src:
