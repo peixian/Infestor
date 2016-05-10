@@ -74,27 +74,29 @@ P_KEY12 = 13
 P_KEY14 = 14
 P_CONST6 = 15
 
-#constant values 
+#constant positions and values 
+c_pos = [ P_CONST0, P_CONST2, P_CONST4, P_CONST6 ] #constant positions, need to shuffle this into steps
 c_vals = [ 30821, 25710, 11570, 25972 ] #constant petya matrix, derived from [ 0x7865, 0x646E, 0x2D32, 0x6574 ], from https://github.com/leo-stone/hack-petya/blob/master/main.go
 
-c_pos = [ P_CONST0, P_CONST2, P_CONST4, P_CONST6 ] #constant positions, need to shuffle this into steps
-
-#key bytes and key positions
+#key position array
+k_pos = [ P_KEY0, P_KEY2, P_KEY4, P_KEY6, P_KEY8, P_KEY10, P_KEY12, P_KEY14 ]
+#key bytes and key words - words start with 0 - see http://www.tgsoft.it/english/news_archivio_eng.asp?id=712
 k_bytes = [ z3.BitVec("kb{}".format(i), 8) for i in BYTERANGE]
 k_words = [ 0 ]*8
 
 #iterate through the range, extending the key_bytes and create
 for i in BYTERANGE:
-    hi = z3.ZeroExt(8, k_bytes[i]) << 9
     low = z3.ZeroExt(8, k_bytes[i]) + 0x7A #key expansion, see paper/petyaCode/key_expand.c
+    hi = z3.ZeroExt(8, k_bytes[i]) << 9
     print(hi)
     print(low)
     k_words[i] = hi | low
 
 print(k_words)
 
-#key position array
-k_pos = [ P_KEY0, P_KEY2, P_KEY4, P_KEY6, P_KEY8, P_KEY10, P_KEY12, P_KEY14 ]
+#create a z3 solver, using SMT-LIB logic: http://smtlib.cs.uiowa.edu/
+#this one uses quantifier-free expressinos, and the entire family of bit-vector sorts and all the functions defined in the Fix_Size_BitVectors theory: https://smtlib.github.io/jSMTLIB/SMTLIBTutorial.pdf
+solver = z3.SolverFor("QF_AUFBV")      
         
 def salsa(arr):
     """10 iterations of the salsa16 round"""
@@ -162,11 +164,7 @@ def make_salsa_matrix(nonce0, nonce2, streamLow, streamHigh):
     
     return matrix    
     
-init, init_clone, srcwords = read_init()
-
-#create a z3 solver, using SMT-LIB logic: http://smtlib.cs.uiowa.edu/
-#this one uses quantifier-free expressinos, and the entire family of bit-vector sorts and all the functions defined in the Fix_Size_BitVectors theory: https://smtlib.github.io/jSMTLIB/SMTLIBTutorial.pdf
-solver = z3.SolverFor("QF_AUFBV")        
+init, init_clone, srcwords = read_init()  
 
 #constraints on the keys
 for k in k_bytes:
