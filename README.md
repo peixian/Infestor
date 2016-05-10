@@ -14,7 +14,8 @@ Noticible Differences Between Actual Salsa20 and BadSalsa
 
 Notes
 ------
-VMDKTemplate is meant to be used with 010Editor, slightly changed to only display the first grain. 
+- A **live** petya sample can be found in the `petyaSample` folder, exercise caution with this, courtesy of https://github.com/ytisf/theZoo.  
+- VMDKTemplate is meant to be used with 010Editor, slightly changed to only display the first grain.
 
 References
 ----------
@@ -27,6 +28,8 @@ References
 - Borked Salsa: https://gist.github.com/extremecoders-re/fef3a5ca04fb2fadcf345106105fc0b6
 - 010 Editor Template: https://github.com/extremecoders-re/VMDK-Template
 - Sample Source: https://github.com/ytisf/theZoo
+- Decryption of Petya: http://blog.checkpoint.com/2016/04/11/decrypting-the-petya-ransomware/
+- Petya X-Ray: http://www.tgsoft.it/english/news_archivio_eng.asp?id=718
 
 [Salsa]: https://cr.yp.to/salsa20.html
 [salsaStream]: https://cr.yp.to/snuffle.html

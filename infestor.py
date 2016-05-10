@@ -86,7 +86,7 @@ k_words = [ 0 ]*8
 #iterate through the range, extending the key_bytes and create
 for i in BYTERANGE:
     hi = z3.ZeroExt(8, k_bytes[i]) << 9
-    low = z3.ZeroExt(8, k_bytes[i]) + ord('z')
+    low = z3.ZeroExt(8, k_bytes[i]) + 122
     print(hi)
     print(low)
     k_words[i] = hi | low
@@ -125,7 +125,7 @@ def salsa_iteration(arr):
     for salsa_round in salsa_steps:
         step(arr, *salsa_round) 
     
-def salsa10(arr):
+def salsa(arr):
     """10 iterations of the salsa16 round"""
     #only shuffle this 10 rounds because it's the `s20_rev_littleendian` function doesn't shift by any amount besides 8
     for i in xrange(10):
@@ -134,6 +134,7 @@ def salsa10(arr):
 def read_init(sourceName = "src.txt", nonceName = "nonce.txt"):
     """Reads hexadecimal values of the source and nonce data, same as: https://petya-pay-no-ransom-mirror1.herokuapp.com/"""
     #opens the files in binary mode, and reads them into a struct
+    #extracts nonce words
     with open(nonceName, "rb") as f_nonce:
         nonce = f_nonce.read().replace(" ", "")
         print("\nnonce: {}\n".format(nonce))
@@ -141,9 +142,11 @@ def read_init(sourceName = "src.txt", nonceName = "nonce.txt"):
 
         #4 unsigned shorts
         (n0, n2, n4, n6) = struct.unpack("HHHH", nonce)
+        #make the intial array
         init = make_salsa_matrix(n0, n4, STREAMLOW, STREAMHIGH)
         init_clone = [i for i in init]
     
+    #extracts ciphertext words
     with open(sourceName, "rb") as f_src:
         src = "".join(line.strip() for line in f_src).replace(" ", "")
         print("src: {}".format(src))
@@ -155,6 +158,7 @@ def read_init(sourceName = "src.txt", nonceName = "nonce.txt"):
             #bitwise xor vs the target, shift it left to find the max bound
             low = (srcbytes[4*i] ^ TARGET)
             high = (srcbytes[4*i+1] ^ TARGET) << 8 #shift by 8 because bad salsa always uses 8 bit shift (check line 44-47 of `samples/badsalsa.c`)
+            #source words is the ciphertext
             srcwords[i] = z3.BitVecVal(low | high, 16) #hash only has 16 bit words, not 32 bit (see `samples/badsalsa.c`)
             
     return (init, init_clone, srcwords)
@@ -163,19 +167,26 @@ init, init_clone, srcwords = read_init()
 
 #create a z3 solver, using SMT-LIB logic: http://smtlib.cs.uiowa.edu/
 #this one uses quantifier-free expressinos, and the entire family of bit-vector sorts and all the functions defined in the Fix_Size_BitVectors theory: https://smtlib.github.io/jSMTLIB/SMTLIBTutorial.pdf
-solver = z3.SolverFor("QF_BV")        
+solver = z3.SolverFor("QF_AUFBV")        
 
+#constraints on the keys
 for k in k_bytes:
     #adds the constraints, but needs to be added st it follows within the constraints
-    solver.add(k != ord('O'))
-    solver.add(k != ord('I'))
-    solver.add(k != ord('l'))
+    solver.add(k != 79)
+    solver.add(k != 73)
+    solver.add(k != 108)
+    
     solver.add(z3.Or(z3.And(k >= 49, k <= 57), z3.And(k >= 97, k <= 120), z3.And(k >= 41, k <= 88)))
     
-salsa10(init)
+#shuffle salsa
+salsa(init)
 
+#constraints on output
 for i in xrange(len(init)):
-    solver.add((init_clone[i] + init[i]) == srcwords[i])
+    #endWord is a combination of the shifted array + inital array
+    endWord = init[i] + init_clone[i]
+    #the end word should match the source word
+    solver.add(endWord == srcwords[i])
 
 #check for finish: https://en.wikipedia.org/wiki/Boolean_satisfiability_problem
 if solver.check() == z3.sat:
