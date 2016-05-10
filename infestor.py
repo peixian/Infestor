@@ -1,7 +1,7 @@
 import struct
 import z3
 
-# Input values to the Salsa round primitive, taken from shuffle() in the hackpetya
+# Input values to the Salsa round primitive, taken from https://cr.yp.to/salsa20.html
 salsa_steps = [
   (4,0,12,7),
   (8,4,0,9),
@@ -95,41 +95,23 @@ print(k_words)
 
 #key position array
 k_pos = [ P_KEY0, P_KEY2, P_KEY4, P_KEY6, P_KEY8, P_KEY10, P_KEY12, P_KEY14 ]
-
-def make_salsa_matrix(nonce0, nonce2, streamLow, streamHigh):
-    """Creates the salsa matrix with the nonce/low counter/high counter"""
-    matrix = [ 0 ] * 16
-    #4 constant values
-    for val in xrange(len(c_vals)):
-        matrix[c_pos[val]] = z3.BitVecVal(c_vals[val], 16)
-    #8 key values
-    for key in xrange(len(k_words)):
-        matrix[k_pos[key]] = k_words[key]
-    #2 nonces, 2 streamPos
-    matrix[P_NONCE0] = z3.BitVecVal(nonce0, 16)
-    matrix[P_NONCE2] = z3.BitVecVal(nonce2, 16)
-    matrix[P_STREAMLOW] = z3.BitVecVal(streamLow, 16)
-    matrix[P_STREAMHIGH] = z3.BitVecVal(streamHigh, 16)
-    
-    return matrix
         
+def salsa(arr):
+    """10 iterations of the salsa16 round"""
+    #only shuffle this 10 rounds because it's the `s20_rev_littleendian` function doesn't shift by any amount besides 8, see samples/badsalsa.c
+    for i in xrange(10):
+        salsa_iteration(arr)
+    
+def salsa_iteration(arr):
+    """One iteration of the salsa16 round"""
+    for salsa_round in salsa_steps:
+        step(arr, *salsa_round) 
 
 def step(arr, out_pos, in_left, in_right, rotate_amount):
     """steps through the salsa16 primitive, follows the add-rotate-xor operation: https://en.wikipedia.org/wiki/Block_cipher#Operations"""
     total = z3.ZeroExt(16, arr[in_left] + arr[in_right]) #add 
     rot = z3.RotateLeft(total, rotate_amount) #rotate
     arr[out_pos] ^= z3.Extract(15, 0, rot) #xor
-    
-def salsa_iteration(arr):
-    """One iteration of the salsa16 round"""
-    for salsa_round in salsa_steps:
-        step(arr, *salsa_round) 
-    
-def salsa(arr):
-    """10 iterations of the salsa16 round"""
-    #only shuffle this 10 rounds because it's the `s20_rev_littleendian` function doesn't shift by any amount besides 8
-    for i in xrange(10):
-        salsa_iteration(arr)
 
 def read_init(sourceName = "src.txt", nonceName = "nonce.txt"):
     """Reads hexadecimal values of the source and nonce data, same as: https://petya-pay-no-ransom-mirror1.herokuapp.com/"""
@@ -163,6 +145,23 @@ def read_init(sourceName = "src.txt", nonceName = "nonce.txt"):
             
     return (init, init_clone, srcwords)
     
+def make_salsa_matrix(nonce0, nonce2, streamLow, streamHigh):
+    """Creates the salsa matrix with the nonce/low counter/high counter"""
+    matrix = [ 0 ] * 16
+    #4 constant values
+    for val in xrange(len(c_vals)):
+        matrix[c_pos[val]] = z3.BitVecVal(c_vals[val], 16)
+    #8 key values
+    for key in xrange(len(k_words)):
+        matrix[k_pos[key]] = k_words[key]
+    #2 nonces, 2 streamPos
+    matrix[P_NONCE0] = z3.BitVecVal(nonce0, 16)
+    matrix[P_NONCE2] = z3.BitVecVal(nonce2, 16)
+    matrix[P_STREAMLOW] = z3.BitVecVal(streamLow, 16)
+    matrix[P_STREAMHIGH] = z3.BitVecVal(streamHigh, 16)
+    
+    return matrix    
+    
 init, init_clone, srcwords = read_init()
 
 #create a z3 solver, using SMT-LIB logic: http://smtlib.cs.uiowa.edu/
@@ -171,12 +170,11 @@ solver = z3.SolverFor("QF_AUFBV")
 
 #constraints on the keys
 for k in k_bytes:
-    #adds the constraints, but needs to be added st it follows within the constraints
+    #adds the constraints, cannot be any of these, see https://github.com/leo-stone/hack-petya/blob/master/main.go
+    solver.add(z3.Or(z3.And(k >= 97, k <= 120), z3.And(k >= 41, k <= 88), z3.And(k >= 49, k <= 57)))
     solver.add(k != 79)
-    solver.add(k != 73)
     solver.add(k != 108)
-    
-    solver.add(z3.Or(z3.And(k >= 49, k <= 57), z3.And(k >= 97, k <= 120), z3.And(k >= 41, k <= 88)))
+    solver.add(k != 73)
     
 #shuffle salsa
 salsa(init)

@@ -31,14 +31,14 @@
   \vspace{3ex}
   
   \begin{abstract}
-	  Ransomware has become a relatively profitable development in recent years with the surge in popularity of Bitcoin and other untracable forms of money transactions. In this paper we detail Petya, a recent form of ransomware targeting Windows platforms and NTFS drives. We describe the construction of Petya and the underlying encryption algorithm, Salsa20, and also present one possible solution called Infestor, which utilizes Z3, an efficient satisfiabliity modulo theory solver, to defeat Petya. 
+	  Ransomware has become a relatively profitable development in recent years with the surge in popularity of Bitcoin and other untraceable forms of money transactions. In this paper we detail Petya, a recent form of ransomware targeting Windows platforms and NTFS drives. We describe the construction of Petya and the underlying encryption algorithm, Salsa20, and also present one possible solution called Infestor, which utilizes Z3, an efficient satisfiability modulo theory solver, to defeat Petya. 
   \end{abstract}
    \vspace{3ex}
 \end{@twocolumnfalse}]
 
 \section{Introduction}
 \label{sec:introduction}
-Online transactions through Tor \cite{tor} using anonomyous cryptocurrencies allow for a certain level of privacy when it comes to payments, but also allow themselves to be used in a malicious fashion. Since Bitcoin, the most popular form of cryptocurrency, makes it extremely hard to track the transactions, Bitcoin has become the de facto standard for ransomware, malware which infects the victim's computer, holds files hostage through encryption, and extorts the victims for money in return for the files. Petya is one such ransomware, except rather than targeting the files of the victim, it targets the master boot record (MBR) and master file table (MFT) \cite{decryptPetya}.
+Online transactions through Tor \cite{tor} using anonymous cryptocurrencies allow for a certain level of privacy when it comes to payments, but also allow themselves to be used in a malicious fashion. Since Bitcoin, the most popular form of cryptocurrency, makes it extremely hard to track the transactions, Bitcoin has become the de facto standard for ransomware, malware which infects the victim's computer, holds files hostage through encryption, and extorts the victims for money in return for the files. Petya is one such ransomware, except rather than targeting the files of the victim, it targets the master boot record (MBR) and master file table (MFT) \cite{decryptPetya}.
 
 \section{Petya}
 \label{sec:petya}
@@ -66,8 +66,9 @@ Petya is a relatively new ransomware variant, only starting to appear within the
 	\label{fig:victimSite}
 \end{figure}
 
-Petya is usually destributed through a zip file \cite{lowLevelPetya}, containing two other files: 1. a photo of a young man, puporting to be an applicant and 2. an executable, disguised as a csv file, shown in figure \ref{fig:petya}. 
+Petya is usually distributed through a zip file \cite{lowLevelPetya}, containing two other files: 1. a photo of a young man, purporting to be an applicant and 2. an executable, disguised as a csv file, shown in figure \ref{fig:petya}. 
 After opening the executable, Petya calls an undocumented API called \code{NtRaiseHardError}. The computer then promptly crashes and boots into a fake CHKDSK scan, shown in figure \ref{fig:fakechk}, which starts the encryption on the MFT. When the encryption completes, the user is shown a ransom note screen, shown in figure \ref{fig:ransomScreen}. After visiting the website, the user is presented with a relatively upscale website, featuring multiple languages (figure \ref{fig:victimSite}) and a tutorial on how victims can perform a bitcoin transaction (figure \ref{fig:victimTutorial}). 
+
 \begin{figure}
 	\includegraphics[width = 0.5\textwidth]{victimTutorial.png}
 	\caption{Petya Tutorial on purchasing bitcoins and performing a transaction. From \cite{lowLevelPetya}.}
@@ -76,10 +77,12 @@ After opening the executable, Petya calls an undocumented API called \code{NtRai
 
 \subsection{Code Analysis}
 The Petya attack can be detailed into 3 stages, the MBR attack stage, the MFT attack stage, and the ransom demand stage.
-\subsubsection{Stage 0 - MBR attack}
-In order to start analysis on Petya, the Windows executable must be examined. The executable generates a 8-byte initalization vector and a unique 16-byte random key that is used for further encryption, which also must be known to attackers to decrypt the files \cite{lowLevelPetya}. This key is expanded into the 32-byte encryption key using figure \ref{ls:key_expand}. Both of these values are used later on in the encryption process \cite{decryptPetya}. 
 
-Petya then encrypts the original MBR by XOR'ing the contents of the MBR with \code{0x37} \cite{breakingPetya}. The encrypted value is then saved to sector 56 in the disk \cite{xrayPetya}. Disk sector 1-34 is encrypted in the same method. Petya then proceeds to write its own kernel, creating an \code{ONION\_SECTOR} structure and writing it to sector 54, shown in figure \ref{fig:onion_sector}. This data conviently contains 8 byte \code{iv}, which is the initalization vector required later on to decrypt. Sector 55 is then filled with the byte \code{0x37}, which is checked after the decryption process for validation purposes.
+\subsubsection{Stage 0 - MBR attack}
+\label{sec:stage0}
+In order to start analysis on Petya, the Windows executable must be examined. The executable generates a 8-byte initialization vector and a unique 16-byte random key that is used for further encryption, which also must be known to attackers to decrypt the files \cite{lowLevelPetya}. This key is expanded into the 32-byte encryption key using figure \ref{ls:key_expand}. Both of these values are used later on in the encryption process \cite{decryptPetya}. 
+
+Petya then encrypts the original MBR by XOR'ing the contents of the MBR with \code{0x37} \cite{breakingPetya}. The encrypted value is then saved to sector 56 in the disk \cite{xrayPetya}. Disk sector 1-34 is encrypted in the same method. Petya then proceeds to write its own kernel, creating an \code{ONION\_SECTOR} structure and writing it to sector 54, shown in figure \ref{fig:onion_sector}. This data conveniently contains 8 byte \code{iv}, which is the initialization vector required later on to decrypt. Sector 55 is then filled with the byte \code{0x37}, which is checked after the decryption process for validation purposes.
 
 \begin{figure}
 	\includegraphics[width = 0.5\textwidth]{onion_sector.png}
@@ -96,19 +99,22 @@ Petya then encrypts the original MBR by XOR'ing the contents of the MBR with \co
 Finally, the \code{NtRaiseHardError} is called, crashing the victim's system. 
 
 \subsubsection{Stage 1}
+\label{sec:stage1}
 The system drive is queried by the Petya kernel, and upon returning a succesful value, Petya begins to overwrite the MFT while masquerading as a CHKDSK \cite{xrayPetya}. 
 
-This stage can be devided into two steps: reading the key and deletion of the key, and encrypting sector 55. 
+This stage can be divided into two steps: reading the key and deletion of the key, and encrypting sector 55. 
 
 In the first step, Petya reads sector 54 into memory, which currently contains the \code{ONION\_SECTOR}. It copies the first 32 bytes of the \code{ONION\_SECTOR} into memory, which is the encryption key, and then proceeds to zero the first 32 bytes of data. Afterwards, the 32-byte key is only present in memory. 
 
-The second step consists of Petya encrypting sector 55, which is currently filled will all byte values of \code{0x37}. Here Petya uses a flawed version of Salsa20 \cite{salsa20Spec}, passing in the 32-byte encryption key and the 8-byte initialization vector, to encrypt sector 55, which we will detail in section \ref{sec:salsa}.
+The second step consists of Petya encrypting sector 55, which is currently filled will all byte values of \code{0x37}. In this step Petya creates a master table of 64 bytes: a 32 byte key, 8 byte vector, and 8 byte value of 0. This table is added and rotated until a 16 DWORD is obtained, with the values of \code{(LOW\_WORD, HIGH\_WORD, 0, 0)}. This is Petya using a flawed version of Salsa20 \cite{salsa20Spec}, passing in the 32-byte encryption key and the 8-byte initialization vector, to encrypt sector 55, which we will detail in section \ref{sec:salsa}. 
+
 
 \subsubsection{Stage 2}
+\label{sec:stage2}
 Finally, Petya simply reboots into the red flashing skull screen, displaying the ransom note and providing an entry for the decryption key. By running the infected disk through a debugger, we can follow the verification process of the key:
 
 \begin{enumerate}
-	\item Read sector 54 to read the 8 byte intialization vector.
+	\item Read sector 54 to read the 8 byte initialization vector.
 	\item Read sector 55.
 	\item Read the user entered key, extract the first 16 bytes, and use the same expansion function as \ref{ls:key_expand} in order to retrieve a 32-byte key.
 	\item Use the 32 byte key and the 8 byte initialization vector to decrypt sector 55, if all the values equal \code{0x37}, then the user entered key is correct. Else throw an \code{Invalid Key!}.
@@ -128,10 +134,9 @@ Thus, in order to break Petya, we must start by breaking its encryption algorith
 \section{Salsa}
 \label{sec:salsa}
 \subsection{Salsa20 Spec}
-Salsa20, at its core, is a function that takes a 64-byte string and produces a 64-byte string. The function follows an add-rotate-xor operation, whose operation can be found in exact detail in the Salsa20 spec \cite{salsa20Spec}, but the original implementation uses a 32-byte encryption key and an 8-byte initilization vector to produce a final 515-bit key-stream, shown in figure \ref{fig:salsaChart}. 
+Salsa20, at its core, is a function that takes a 64-byte string and produces a 64-byte string. The function follows an add-rotate-xor operation, whose operation can be found in exact detail in the Salsa20 spec \cite{salsa20Spec}, but the original implementation uses a 32-byte encryption key and an 8-byte initialization vector to produce a final 515-bit key-stream, shown in figure \ref{fig:salsaChart}. 
 
-To create the output, the 64 byte input into Salsa is seen in little-endian form as 16 words, which are fed into 320 invertible modifications, where each modification changes one words. The resulting 16 words are added to the orginal input respectively mod $2^32$, which then produces the output in little-endian form. The exact modification is predefined in the Salsa spec and implementations \cite{salsa20}, which is a series of 10 identical double-rounds, each consisting of 4 parallel quarter-rounds, with each quarter-round modifying 4 words \cite{salsa20Core}. 
-
+To create the output, the 64 byte input into Salsa is seen in little-endian form as 16 words, which are fed into 320 invertible modifications, where each modification changes one words. The resulting 16 words are added to the original input respectively mod $2^{32}$, which then produces the output in little-endian form. The exact modification is predefined in the Salsa spec and implementations \cite{salsa20}, which is a series of 10 identical double-rounds, each consisting of 4 parallel quarter-rounds, with each quarter-round modifying 4 words \cite{salsa20Core}. 
 
 \begin{figure*}
 	\includegraphics[width = \textwidth]{salsaChart.png}
@@ -139,9 +144,41 @@ To create the output, the 64 byte input into Salsa is seen in little-endian form
 	\label{fig:salsaChart}
 \end{figure*}
 
+\subsection{Petya Salsa}
+
+\begin{figure*}
+	\includegraphics[width = \textwidth]{badSalsaChart.png}
+	\caption{The flawed Salsa implementation, bytes in gray are unused values. From \cite{decryptPetya}.}
+	\label{fig:badSalsaChart}
+\end{figure*}
+
+Fortunately, the implementation of Salsa within Petya is severely flawed, allowing us to easily break it \cite{decryptPetya}. 
+
+\subsubsection{Flaw 1}
+The original Salsa utilizes a 64-bit value \cite{salsa20}, but Petya uses a 32-bit value, resulting in the high part of the key being a constant value of 0. 
+
+\subsubsection{Flaw 2}
+Salsa20 performs a rotate left operation utilizing unsigned 32 bit integers (\code{uint32\_t}) \cite{salsa20} with a constant shift left of value 32, but Petya does this with 16 bit integers. This results in a far more predictable result.
+
+\subsubsection{Flaw 3}
+Salsa20 uses two internal 32 bit vectors, but Petya uses two internal 16 bit vectors. This results in the little-endian revolution resulting in half of the revolutions becoming 0, meaning that half of the key is constant and predictable, shown in figure \ref{fig:badSalsaChart}. The bytes in gray represent unused values. 
+
+
 \section{Infestor}
 \label{sec:infestor}
+With the various flaws in Petya's implementation of Salsa and the constraints based around the keys, we can begin to construct a constraint solver for Petya. Many of the values in the constraint solver were derived from a genetic solver written by Leo Stone \cite{geneticSolver}, who had many constants already discovered.
+
 \subsection{Code Walkthrough}
+
+We begin solving with the \code{infestor.py} file, found on \url{https://github.com/peixian/Infestor/blob/master/infestor.py}.
+
+We first define the steps Salsa takes, which are already defined in the Salsa20 core \cite{salsa20Core}. Next, we define constants, including the target byte value of \code{0x37} for us to xor to, along with \code{STREAMHIGH} and \code{STREAMLOW}, which are a part of the 16 DWORD obtained in \ref{sec:stage1}. We can then start to reconstruct the initial table referenced in the Salsa20 core \cite{salsa20Core}. We use the constant values taken from the genetic solver \cite{geneticSolver}, and then initialize it with constants and the key bytes. We can construct reconstruct the key expansion process with the \code{z3.ZeroExt} \cite{z3Guide}, which is always constant in figure \ref{ls:key_expand}. 
+
+Next, we define the various Salsa functions, which are simply taken from the Salsa implementation \cite{salsa20}. 
+
+Afterwards, we need to extract the 8 byte initialization vector from sector 54, stored in \code{nonce.txt}, which is in actuality the nonce for Salsa. We also need to extract the 512 byte cipher-text from sector 55, which is then stored in code{src.txt}. We then set up z3 as a bit vector value to find the initial matrix and source words. 
+
+In order to complete the constraints, we can take additional constraints found in the genetic solver and add it to our z3 solver. To complete our solution, we need to apply the same function the Salsa20 core does referenced in section \ref{sec:salsa}, which is to add the resulting words to the initial words, and then modulo $2^{32}$. Due to the flawed implementation of Salsa by Petya, we can simply respectively modulo the source words by $2^{16}$, which is our final constraints for the solver. Finally, we simply run the solver to find the original key. 
 
 \bibliography{paper} 
 
