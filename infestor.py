@@ -183,7 +183,7 @@ salsa(init)
 
 #constraints on output
 for i in xrange(len(init)):
-    #endWord is a combination of the shifted array + inital array
+    #endWord is a combination of the shifted array + inital array, see the Salsa20 core definition: https://cr.yp.to/salsa20.html
     endWord = init[i] + init_clone[i]
     #the end word should match the source word
     solver.add(endWord == srcwords[i])
