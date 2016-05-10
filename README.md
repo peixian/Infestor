@@ -25,7 +25,6 @@ References
 - Genetic Go Solver: https://github.com/leo-stone/hack-petya
 - Online Solver: https://petya-pay-no-ransom-mirror1.herokuapp.com/
 - Salsa20 Actual Implementation: https://github.com/alexwebr/salsa20/blob/master/salsa20.c
-- Borked Salsa: https://gist.github.com/extremecoders-re/fef3a5ca04fb2fadcf345106105fc0b6
 - 010 Editor Template: https://github.com/extremecoders-re/VMDK-Template
 - Sample Source: https://github.com/ytisf/theZoo
 - Decryption of Petya: http://blog.checkpoint.com/2016/04/11/decrypting-the-petya-ransomware/
