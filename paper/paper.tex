@@ -13,13 +13,13 @@
 \usepackage{cite}
 \usepackage{natbib}
 \usepackage{amsmath}
-\usepackage{algorithm}
-\usepackage[noend]{algpseudocode}
-\usepackage[]{units}
+\usepackage{listings}
 
+\newcommand{\code}[1]{\texttt{#1}}
 \graphicspath{ {../images/} }
 \bibliographystyle{acm} 
 \setlength{\columnsep}{1cm}
+\lstset{language=C}
 
 \begin{document}
 
@@ -65,13 +65,38 @@ Petya is a relatively new ransomware variant, only starting to appear within the
 \end{figure}
 \begin{figure}
 	\includegraphics[width = 0.5\textwidth]{victimTutorial.png}
-	\caption{Petya Tutorial on purchasing bitcoins and performing a transaction. }
+	\caption{Petya Tutorial on purchasing bitcoins and performing a transaction. From \cite{lowLevelPetya}.}
 	\label{fig:victimTutorial}
 \end{figure}
 Petya is usually destributed through a zip file \cite{lowLevelPetya}, containing two other files: 1. a photo of a young man, puporting to be an applicant and 2. an executable, disguised as a csv file, shown in figure \ref{fig:petya}. 
-After opening the executable, Petya calls an undocumented API called NtRaiseHardError. The computer then promptly crashes and boots into a fake CHKDSK scan, shown in figure \ref{fig:fakechk}, which starts the encryption on the MFT. When the encryption completes, the user is shown a ransom note screen, shown in figure \ref{fig:ransomScreen}. After visiting the website, the user is presented with a relatively upscale website, featuring multiple languages (figure \ref{fig:victimSite}) and a tutorial on how victims can perform a bitcoin transaction (figure \ref{fig:victimTutorial}). 
+After opening the executable, Petya calls an undocumented API called \code{NtRaiseHardError}. The computer then promptly crashes and boots into a fake CHKDSK scan, shown in figure \ref{fig:fakechk}, which starts the encryption on the MFT. When the encryption completes, the user is shown a ransom note screen, shown in figure \ref{fig:ransomScreen}. After visiting the website, the user is presented with a relatively upscale website, featuring multiple languages (figure \ref{fig:victimSite}) and a tutorial on how victims can perform a bitcoin transaction (figure \ref{fig:victimTutorial}). 
 \subsection{Code Analysis}
+The Petya attack can be detailed into 3 stages, the MBR attack stage, the MFT attack stage, and the ransom demand stage.
+\subsubsection{Stage 0 - MBR attack}
+In order to start analysis on Petya, the Windows executable must be examined. The executable generates a 8-byte initalization vector and a unique 16-byte random key that is used for further encryption, which also must be known to attackers to decrypt the files \cite{lowLevelPetya}. This key is expanded into the 32-byte encryption key using figure \ref{ls:key_expand}. Both of these values are used later on in the encryption process \cite{decryptPetya}. 
 
+Petya then encrypts the original MBR by XOR'ing the contents of the MBR with \code{0x37} \cite{breakingPetya}. The encrypted value is then saved to sector 56 in the disk \cite{xrayPetya}. Disk sector 1-34 is encrypted in the same method. Petya then proceeds to write its own kernel, creating an \code{ONION\_SECTOR} structure and writing it to sector 54, shown in figure \ref{fig:onion_sector}. This data conviently contains 8 byte \code{iv}, which is the initalization vector required later on to decrypt. Sector 55 is then filled with the byte \code{0x37}, which is checked after the decryption process for validation purposes.
+
+\begin{figure}
+	\includegraphics[width = 0.5\textwidth]{onion_sector.png}
+	\caption{The \code{ONION\_SECTOR} struct, from \cite{decryptPetya}. }
+	\label{fig:onion_sector}	
+\end{figure}
+
+\begin{figure*}
+	\lstinputlisting[language=C]{petyaCode/key_expand.c}
+	\caption{The key expansion method called by Petya. From \cite{decryptPetya}.}
+	\label{ls:key_expand}
+\end{figure*}
+
+Finally, the \code{NtRaiseHardError} is called, crashing the victim's system. 
+
+\subsubsection{Stage 1}
+The system drive name is then queried 
+
+
+
+Upon reboot, the kernel calls the fake CHKDSK and encrpyts the MFT using Salsa20 \cite{salsa20Spec}. 
 \section{Salsa20}
 \subsection{Overview}
 \subsection{Implementation}
@@ -80,8 +105,6 @@ After opening the executable, Petya calls an undocumented API called NtRaiseHard
 \section{Infestor}
 \subsection{Code Walkthrough}
 
-
-As online transcations through Tor \cite{tor} and cryptocurrencies become more commonplace, 
 \bibliography{paper} 
 
 \end{document}

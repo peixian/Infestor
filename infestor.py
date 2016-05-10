@@ -86,7 +86,7 @@ k_words = [ 0 ]*8
 #iterate through the range, extending the key_bytes and create
 for i in BYTERANGE:
     hi = z3.ZeroExt(8, k_bytes[i]) << 9
-    low = z3.ZeroExt(8, k_bytes[i]) + 122
+    low = z3.ZeroExt(8, k_bytes[i]) + 0x7A #key expansion, see paper/petyaCode/key_expand.c
     print(hi)
     print(low)
     k_words[i] = hi | low
