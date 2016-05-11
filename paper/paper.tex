@@ -170,9 +170,9 @@ With the various flaws in Petya's implementation of Salsa and the constraints ba
 
 \subsection{Code Walkthrough}
 
-We begin solving with the \code{infestor.py} file, found on \url{https://github.com/peixian/Infestor/blob/master/infestor.py}.
+We begin solving with the \code{infestor.py} file, found on \url{https://github.com/peixian/Infestor/blob/master/infestor.py}, which is based on a code template \cite{codeTemplate}.
 
-We first define the steps Salsa takes, which are already defined in the Salsa20 core \cite{salsa20Core}. Next, we define constants, including the target byte value of \code{0x37} for us to xor to, along with \code{STREAMHIGH} and \code{STREAMLOW}, which are a part of the 16 DWORD obtained in \ref{sec:stage1}. We can then start to reconstruct the initial table referenced in the Salsa20 core \cite{salsa20Core}. We use the constant values taken from the genetic solver \cite{geneticSolver}, and then initialize it with constants and the key bytes. We can construct reconstruct the key expansion process with the \code{z3.ZeroExt} \cite{z3Guide}, which is always constant in figure \ref{ls:key_expand}. 
+We first define the steps Salsa takes, which are already defined in the Salsa20 core \cite{salsa20Core}. Next, we define constants, including the target byte value of \code{0x37} for us to xor to, along with \code{STREAMHIGH} and \code{STREAMLOW}, which are a part of the 16 DWORD obtained in \ref{sec:stage1}. We can then start to reconstruct the initial table referenced in the Salsa20 core \cite{salsa20Core}. We use the constant values taken from the genetic solver \cite{geneticSolver} and from a petya\_recovery application \cite{petyaRecovery}, and then initialize it with constants and the key bytes. We can construct reconstruct the key expansion process with the \code{z3.ZeroExt} \cite{z3Guide}, which is always constant in figure \ref{ls:key_expand}. 
 
 Next, we define the various Salsa functions, which are simply taken from the Salsa implementation \cite{salsa20}. 
 
