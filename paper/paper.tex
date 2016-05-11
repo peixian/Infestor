@@ -167,7 +167,7 @@ Salsa20 uses two internal 32 bit vectors, but Petya uses two internal 16 bit vec
 
 \section{Infestor}
 \label{sec:infestor}
-With the various flaws in Petya's implementation of Salsa and the constraints based around the keys, we can begin to attack Petya. Since there was already a built implementation using Z3, we decided to replicate the attack by modifying the same basic code \cite{codeTemplate}. Many of the values in the constraint solver were derived from a genetic solver written by Leo Stone \cite{geneticSolver}, who had many constants already discovered.
+With the various flaws in Petya's implementation of Salsa and the constraints based around the keys, we can begin to attack Petya. Since there was already a built implementation using Z3, we decided to replicate the attack by modifying the same basic code \cite{codeTemplate}, using the same initial setup for z3 and reading the files. In order to finish z3, constraints must be found and applied to, which were derived from a genetic solver written by Leo Stone \cite{geneticSolver}, who had many constants already discovered.
 
 \subsection{Code Walkthrough}
 
@@ -179,7 +179,7 @@ Next, the various Salsa functions are defined, which are simply taken from the S
 
 Afterwards, the 8 byte initialization vector from sector 54 must be extracted, stored in \code{nonce.txt}, which is in actuality the nonce for Salsa. The 512 byte cipher-text from sector 55 must also be extracted, which is then stored in \code{src.txt}. Z3 is then set up as a bit vector value to find the initial matrix and source words. This is slightly different from \cite{codeTemplate} due to reading it hex directly, which allows us to bypass various ASCII encoding issues.
 
-In order to complete the constraints, the additional constraints found in the genetic solver must be applied to the z3 solver. To complete the solution, the same function the Salsa20 core does referenced in section \ref{sec:salsa}, which is to add the resulting words to the initial words, and then modulo $2^{32}$, done the same . Due to the flawed implementation of Salsa by Petya, we can simply respectively modulo the source words by $2^{16}$, which is our final constraints for the solver. Finally, we simply run the solver to find the original key. 
+In order to complete the constraints, the additional constraints found in the genetic solver must be applied to the z3 solver \cite{geneticSolver}. To complete the solution, the same function the Salsa20 core does referenced in section \ref{sec:salsa}, which is to add the resulting words to the initial words, and then modulo $2^{32}$. Due to the flawed implementation of Salsa by Petya, we can simply respectively modulo the source words by $2^{16}$, which is our final constraints for the solver. Finally, we simply run the solver to find the original key. 
 
 \bibliography{paper} 
 
