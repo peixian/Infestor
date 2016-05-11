@@ -28,6 +28,7 @@ References
 - Sample Source: https://github.com/ytisf/theZoo
 - Decryption of Petya: http://blog.checkpoint.com/2016/04/11/decrypting-the-petya-ransomware/
 - Petya X-Ray: http://www.tgsoft.it/english/news_archivio_eng.asp?id=718
+- Code template: http://pastebin.com/Zc16DfL1
 
 [Salsa]: https://cr.yp.to/salsa20.html
 [salsaStream]: https://cr.yp.to/snuffle.html
